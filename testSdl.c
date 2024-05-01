@@ -60,6 +60,16 @@ int nbApples = 15;
 int applesXPositions[] = {10, 120, 170, 320, 330, 390, 450, 460, 490, 510, 550, 600, 680, 690, 750};
 int applesYPositions[] = {25, 75, 130, 175, 190, 780, 452, 125, 50, 190, 550, 170, 10, 100, 140};
 
+int nbBoxes = 23;
+int boxesXPositions[] = {0, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 250, 250, 896, 960, 1024, 1088, 1152, 1216, 250, 250, 250};
+int boxesYPositions[] = {896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 396, 232, 896, 896, 896, 896, 896, 896, 560, 110, 740};
+int boxesMovements[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, 4, 0, 0, 0, 0, 0, 0, 3, 3, -3};
+
+int nbTraps = 7;
+int trapsXPositions[] = {1216, 1152, 1088, 1024, 960, 640, 768};
+int trapsYPositions[] = {832, 832, 832, 832, 832, 704, 576};
+int trapsMovements[] = {0, 0, 0, 0, 0, 5, 6};
+
 int processEvents(Game *game, int close);
 void collisionDetect(Game *game);
 
@@ -137,55 +147,27 @@ int main(int argc, char *argv[])
 	Player player1 = {200, 200, 0, 0, false};
 	game.player = player1;
 	game.time = 0;
-	for (int i = 0; i < 20; i++)
+
+	// Fix the game elements positions
+	for (int i = 0; i < nbBoxes; i++)
 	{
 		game.boxes[i].w = 64;
 		game.boxes[i].h = 64;
-		game.boxes[i].x = i * 64;
-		game.boxes[i].y = WINDOW_LENGTH - 64;
-		game.boxes[i].dx = 0;
+		game.boxes[i].x = boxesXPositions[i];
+		game.boxes[i].y = boxesYPositions[i];
+		game.boxes[i].dx = boxesMovements[i];
 		game.boxes[i].dy = 0;
 	}
 
-	for (int i = 0; i < 20; i++)
-	{
-		if (i == 12 || i == 13)
-			continue;
-		game.boxes[i].w = 64;
-		game.boxes[i].h = 64;
-		game.boxes[i].x = i * 64;
-		game.boxes[i].y = WINDOW_LENGTH - 64;
-		game.boxes[i].dx = 0;
-		game.boxes[i].dy = 0;
-	}
-
-	for (int i = 0; i < 5; i++)
+    for (int i = 0; i < nbTraps; i++)
 	{
 		game.trap[i].w = 64;
 		game.trap[i].h = 64;
-		game.trap[i].x = WINDOW_WIDTH - ((i + 1) * 64);
-		game.trap[i].y = WINDOW_LENGTH - 128;
-		game.trap[i].dx = 0;
+		game.trap[i].x = trapsXPositions[i];
+		game.trap[i].y = trapsYPositions[i];
+		game.trap[i].dx = trapsMovements[i];
 		game.trap[i].dy = 0;
 	}
-	for (int i = 5; i < 7; i++)
-	{
-		game.trap[i].w = 64;
-		game.trap[i].h = 64;
-		game.trap[i].x = (i * 128);
-		game.trap[i].y = WINDOW_LENGTH - (i - 3) * 128;
-		game.trap[i].dx = i;
-		game.trap[i].dy = 0;
-	}
-	/*for(int i = 7; i < 10; i++)
-	{
-		game.trap[i].w = 64;
-		game.trap[i].h = 64;
-		game.trap[i].x = (i*128);
-		game.trap[i].y = WINDOW_LENGTH-128;
-		game.trap[i].dx = 0;
-		game.trap[i].dy = 0;
-	}*/
 
 	for (int i = 0; i < nbApples; i++)
 	{
@@ -197,41 +179,6 @@ int main(int argc, char *argv[])
 		game.apple[i].dy = 0;
 		game.apple[i].eaten = 0;
 	}
-
-	game.boxes[12].w = 64;
-	game.boxes[12].h = 64;
-	game.boxes[12].x = 250;
-	game.boxes[12].y = WINDOW_LENGTH - 564;
-	game.boxes[12].dx = -2;
-	game.boxes[12].dy = 0;
-
-	game.boxes[13].w = 64;
-	game.boxes[13].h = 64;
-	game.boxes[13].x = 250;
-	game.boxes[13].y = WINDOW_LENGTH - 728;
-	game.boxes[13].dx = 4;
-	game.boxes[13].dy = 0;
-
-	game.boxes[20].w = 64;
-	game.boxes[20].h = 64;
-	game.boxes[20].x = 250;
-	game.boxes[20].y = WINDOW_LENGTH - 400;
-	game.boxes[20].dx = 3;
-	game.boxes[20].dy = 0;
-
-	game.boxes[21].w = 64;
-	game.boxes[21].h = 64;
-	game.boxes[21].x = 250;
-	game.boxes[21].y = WINDOW_LENGTH - 850;
-	game.boxes[21].dx = 3;
-	game.boxes[21].dy = 0;
-
-	game.boxes[22].w = 64;
-	game.boxes[22].h = 64;
-	game.boxes[22].x = 250;
-	game.boxes[22].y = WINDOW_LENGTH - 220;
-	game.boxes[22].dx = -3;
-	game.boxes[22].dy = 0;
 
 	// controls animation loop
 	int close = 0;
