@@ -165,9 +165,9 @@ int main(int argc, char *argv[])
 	{
 		game.boxes[i].w = 64;
 		game.boxes[i].h = 64;
-		game.boxes[i].x = boxesXPositions[i];
-		game.boxes[i].y = boxesYPositions[i];
-		game.boxes[i].dx = boxesMovements[i];
+		game.boxes[i].x = level->boxesXPositions[i];
+		game.boxes[i].y = level->boxesYPositions[i];
+		game.boxes[i].dx = level->boxesMovements[i];
 		game.boxes[i].dy = 0;
 	}
 
@@ -175,9 +175,9 @@ int main(int argc, char *argv[])
 	{
 		game.trap[i].w = 64;
 		game.trap[i].h = 64;
-		game.trap[i].x = trapsXPositions[i];
-		game.trap[i].y = trapsYPositions[i];
-		game.trap[i].dx = trapsMovements[i];
+		game.trap[i].x = level->trapsXPositions[i];
+		game.trap[i].y = level->trapsYPositions[i];
+		game.trap[i].dx = level->trapsMovements[i];
 		game.trap[i].dy = 0;
 	}
 
@@ -185,9 +185,9 @@ int main(int argc, char *argv[])
 	{
 		game.apple[i].w = 16;
 		game.apple[i].h = 16;
-		game.apple[i].x = applesXPositions[i];
-		game.apple[i].y = applesYPositions[i];
-		game.apple[i].dx = 0;
+		game.apple[i].x = level->applesXPositions[i];
+		game.apple[i].y = level->applesYPositions[i];
+		game.apple[i].dx = level->applesMovements[i];
 		game.apple[i].dy = 0;
 		game.apple[i].eaten = 0;
 	}
