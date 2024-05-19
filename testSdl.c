@@ -3,6 +3,9 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_timer.h>
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
@@ -11,6 +14,7 @@
 #define WINDOW_LENGTH 960
 #define SPEED_MOUVEMENT 5
 #define GRAVITY 0.4f
+#define MAX_ELEMENT_COUNT 100
 
 typedef struct
 {
@@ -36,20 +40,19 @@ typedef struct
 	int x, y, w, h, dx, dy, eaten;
 } Item;
 
-typedef struct
-{
-    int nbApples;
-    int *applesXPositions;
-    int *applesYPositions;
-    int *applesMovements;
-    int nbBoxes;
-    int *boxesXPositions;
-    int *boxesYPositions;
-    int *boxesMovements;
-    int nbTraps;
-    int *trapsXPositions;
-    int *trapsYPositions;
-    int *trapsMovements;
+typedef struct {
+    int xPosition;
+    int yPosition;
+    int movement;
+} Object;
+
+typedef struct {
+	int nbApples;
+    Object apples[MAX_ELEMENT_COUNT];
+	int nbBoxes;
+    Object boxes[MAX_ELEMENT_COUNT];
+	int nbTraps;
+    Object traps[MAX_ELEMENT_COUNT];
 } Level;
 
 typedef struct
@@ -58,6 +61,7 @@ typedef struct
 	Box boxes[23];
 	Trap trap[10];
 	Item apple[15];
+	Level level[2];
 	SDL_Renderer *renderer;
 	SDL_Texture *background;
 	SDL_Texture *item;
@@ -72,53 +76,18 @@ typedef struct
 
 } Game;
 
-/*int nbApples = 15;
-int applesXPositions[] = {10, 120, 170, 320, 330, 390, 450, 460, 490, 510, 550, 600, 680, 690, 750};
-int applesYPositions[] = {25, 75, 130, 175, 190, 780, 452, 125, 50, 190, 550, 170, 10, 100, 140};
-
-int nbBoxes = 23;
-int boxesXPositions[] = {0, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 250, 250, 896, 960, 1024, 1088, 1152, 1216, 250, 250, 250};
-int boxesYPositions[] = {896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 396, 232, 896, 896, 896, 896, 896, 896, 560, 110, 740};
-int boxesMovements[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, 4, 0, 0, 0, 0, 0, 0, 3, 3, -3};
-
-int nbTraps = 7;
-int trapsXPositions[] = {1216, 1152, 1088, 1024, 960, 640, 768};
-int trapsYPositions[] = {832, 832, 832, 832, 832, 704, 576};
-int trapsMovements[] = {0, 0, 0, 0, 0, 5, 6};
-*/
-
 int processEvents(Game *game, int close);
 void collisionDetect(Game *game, int nbBoxes);
 void initGameElements(Game *game, SDL_Surface *surface);
-Level *createLevel(int nbApples, int nbBoxes, int nbTraps);
-void fillLevel(Level *level,
-               int nbApples, int *applesXPositions, int *applesYPositions, int *applesMovements,
-               int nbBoxes, int *boxesXPositions, int *boxesYPositions, int *boxesMovements,
-               int nbTraps, int *trapsXPositions, int *trapsYPositions, int *trapsMovements);
-void destroyLevel(Level *level);
-
+void parseObject(xmlNode *node, Object *obj, int index);
+void parseLevel(xmlNode *node, Level *level);			   
+void fixLevelElements(Game *game);
 
 int cnt = 0;
 
 int main(int argc, char *argv[])
 {
 	Game game;
-
-	int nbApples = 15;
-    int applesXPositions[] = {410, 120, 170, 320, 330, 390, 450, 460, 490, 510, 550, 600, 680, 690, 750};
-    int applesYPositions[] = {25, 475, 730, 175, 190, 380, 492, 125, 50, 190, 550, 800, 10, 100, 140};
-	int applesMovements[] = {0};
-
-    int nbBoxes = 20;
-    int boxesXPositions[] = {0, 64, 205, 333, 468, 598, 727, 250, 250, 896, 960, 1024, 1088, 1152, 1216, 250, 250, 250, 500, 500};
-    int boxesYPositions[] = {896, 896, 896, 896, 896, 896, 896, 396, 232, 896, 896, 896, 896, 896, 896, 560, 110, 740, 420, 600};
-    int boxesMovements[] = {0, 0, 0, 0, 0, 0, 0, -2, 4, 0, 0, 0, 0, 0, 0, 3, 3, -3, -7, 9};
-
-    int nbTraps = 7;
-    int trapsXPositions[] = {1216, 1152, 1088, 1024, 960, 640, 768, 100, 350};
-    int trapsYPositions[] = {832, 832, 832, 832, 832, 704, 576, 200, 390};
-    int trapsMovements[] = {0, 0, 0, 0, 0, 5, 6, -5, 8};
-
 	// creates a surface to load an image into the main memory
 	SDL_Surface *surface;
 	srand((int)time(NULL));
@@ -135,23 +104,35 @@ int main(int argc, char *argv[])
 	// triggers the program that controls
 	// your graphics hardware and sets flags
 	Uint32 render_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
-
+	TTF_Init();
 	// creates a renderer to render our images
 	SDL_Renderer *render = SDL_CreateRenderer(win, -1, render_flags);
-
-
-    Level *level = createLevel(nbApples, nbBoxes, nbTraps);
-    if (level == NULL) {
-        // Handle error
-        return 1;
-    }
-	fillLevel(level,
-              nbApples, applesXPositions, applesYPositions, applesMovements,
-              nbBoxes, boxesXPositions, boxesYPositions, boxesMovements,
-              nbTraps, trapsXPositions, trapsYPositions, trapsMovements);
-
 	game.renderer = render;
-	TTF_Init();
+	int levelIndex = 0;
+	xmlDoc *doc = NULL;
+    xmlNode *root_element = NULL;
+
+    // Initialize the library and check potential ABI mismatches
+    LIBXML_TEST_VERSION
+
+    // Parse the file and get the DOM
+    doc = xmlReadFile("./xml/levels.xml", NULL, 0);
+    if (doc == NULL) {
+        printf("Could not parse the XML file\n");
+        return -1;
+    }
+
+    // Get the root element
+    root_element = xmlDocGetRootElement(doc);
+
+    // Parse each level
+    xmlNode *cur_node = NULL;
+    for (cur_node = root_element->children; cur_node; cur_node = cur_node->next) {
+        if (cur_node->type == XML_ELEMENT_NODE && xmlStrcmp(cur_node->name, (const xmlChar *)"level") == 0) {
+            parseLevel(cur_node, &game.level[levelIndex++]);
+        }
+    }
+
     initGameElements(&game, surface);
 	// clears main-memory
 
@@ -159,38 +140,8 @@ int main(int argc, char *argv[])
 	Player player1 = {200, 200, 0, 0, false};
 	game.player = player1;
 	game.time = 0;
-
 	// Fix the game elements positions
-	for (int i = 0; i < nbBoxes; i++)
-	{
-		game.boxes[i].w = 64;
-		game.boxes[i].h = 64;
-		game.boxes[i].x = level->boxesXPositions[i];
-		game.boxes[i].y = level->boxesYPositions[i];
-		game.boxes[i].dx = level->boxesMovements[i];
-		game.boxes[i].dy = 0;
-	}
-
-    for (int i = 0; i < nbTraps; i++)
-	{
-		game.trap[i].w = 64;
-		game.trap[i].h = 64;
-		game.trap[i].x = level->trapsXPositions[i];
-		game.trap[i].y = level->trapsYPositions[i];
-		game.trap[i].dx = level->trapsMovements[i];
-		game.trap[i].dy = 0;
-	}
-
-	for (int i = 0; i < nbApples; i++)
-	{
-		game.apple[i].w = 16;
-		game.apple[i].h = 16;
-		game.apple[i].x = level->applesXPositions[i];
-		game.apple[i].y = level->applesYPositions[i];
-		game.apple[i].dx = level->applesMovements[i];
-		game.apple[i].dy = 0;
-		game.apple[i].eaten = 0;
-	}
+    fixLevelElements(&game);
 
 	// controls animation loop
 	int close = 0;
@@ -228,7 +179,7 @@ int main(int argc, char *argv[])
 		close = processEvents(&game, close);
 		if (!close)
 		{
-			collisionDetect(&game, nbBoxes);
+			collisionDetect(&game, game.level[0].nbBoxes);
 			// clears the screen
 			SDL_RenderClear(game.renderer);
 
@@ -246,7 +197,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the boxes
-			for (int i = 0; i < nbBoxes; i++)
+			for (int i = 0; i < game.level[0].nbBoxes; i++)
 			{
 				game.boxes[i].x = (game.boxes[i].x + game.boxes[i].dx + WINDOW_WIDTH) % WINDOW_WIDTH;
 				game.boxes[i].y = (game.boxes[i].y + game.boxes[i].dy + WINDOW_WIDTH) % WINDOW_WIDTH;
@@ -258,7 +209,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the non eaten apples
-			for (int i = 0; i < nbApples; i++)
+			for (int i = 0; i < game.level[0].nbApples; i++)
 			{
 				if (!game.apple[i].eaten)
 				{
@@ -275,7 +226,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the traps
-			for (int i = 0; i < nbTraps; i++)
+			for (int i = 0; i < game.level[0].nbTraps; i++)
 			{
 				int cnt = 0;
 				if (i == 2 || i == 3)
@@ -386,92 +337,111 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-// Initialize a Level struct
-Level *createLevel(int nbApples, int nbBoxes, int nbTraps)
-{
-    Level *level = malloc(sizeof(Level));
-    if (level == NULL) {
-        // Handle memory allocation failure
-        return NULL;
-    }
+// Get data from each parsed level
+void parseObject(xmlNode *node, Object *obj, int index) {
+    xmlChar *x = xmlGetProp(node, (const xmlChar *)"x");
+    xmlChar *y = xmlGetProp(node, (const xmlChar *)"y");
+    xmlChar *movement = xmlGetProp(node, (const xmlChar *)"movement");
 
-    level->nbApples = nbApples;
-    level->applesXPositions = malloc(nbApples * sizeof(int));
-    level->applesYPositions = malloc(nbApples * sizeof(int));
-    level->applesMovements = malloc(nbApples * sizeof(int));
+    obj[index].xPosition = atoi((const char *)x);
+    obj[index].yPosition = atoi((const char *)y);
+    obj[index].movement = atoi((const char *)movement);
 
-    level->nbBoxes = nbBoxes;
-    level->boxesXPositions = malloc(nbBoxes * sizeof(int));
-    level->boxesYPositions = malloc(nbBoxes * sizeof(int));
-    level->boxesMovements = malloc(nbBoxes * sizeof(int));
-
-    level->nbTraps = nbTraps;
-    level->trapsXPositions = malloc(nbTraps * sizeof(int));
-    level->trapsYPositions = malloc(nbTraps * sizeof(int));
-    level->trapsMovements = malloc(nbTraps * sizeof(int));
-
-    return level;
+    xmlFree(x);
+    xmlFree(y);
+    xmlFree(movement);
 }
 
-void fillLevel(Level *level,
-               int nbApples, int *applesXPositions, int *applesYPositions, int *applesMovements,
-               int nbBoxes, int *boxesXPositions, int *boxesYPositions, int *boxesMovements,
-               int nbTraps, int *trapsXPositions, int *trapsYPositions, int *trapsMovements)
-{
-    // Fill apples data
-    level->nbApples = nbApples;
-    for (int i = 0; i < nbApples; i++) {
-        level->applesXPositions[i] = applesXPositions[i];
-        level->applesYPositions[i] = applesYPositions[i];
-        level->applesMovements[i] = applesMovements[i];
-    }
+// Parse xml file for levels
+void parseLevel(xmlNode *node, Level *level) {
+    xmlNode *cur_node = NULL;
+    int appleIndex = 0, boxIndex = 0, trapIndex = 0;
+	level->nbApples = 0;
+	level->nbBoxes = 0;
+	level->nbTraps = 0;
 
-    // Fill boxes data
-    level->nbBoxes = nbBoxes;
-    for (int i = 0; i < nbBoxes; i++) {
-        level->boxesXPositions[i] = boxesXPositions[i];
-        level->boxesYPositions[i] = boxesYPositions[i];
-        level->boxesMovements[i] = boxesMovements[i];
-    }
-
-    // Fill traps data
-    level->nbTraps = nbTraps;
-    for (int i = 0; i < nbTraps; i++) {
-        level->trapsXPositions[i] = trapsXPositions[i];
-        level->trapsYPositions[i] = trapsYPositions[i];
-        level->trapsMovements[i] = trapsMovements[i];
+    for (cur_node = node->children; cur_node; cur_node = cur_node->next) {
+        if (cur_node->type == XML_ELEMENT_NODE) {
+            if (xmlStrcmp(cur_node->name, (const xmlChar *)"apples") == 0) {
+                xmlNode *apple_node = NULL;
+                for (apple_node = cur_node->children; apple_node; apple_node = apple_node->next) {
+                    if (apple_node->type == XML_ELEMENT_NODE) {
+                        parseObject(apple_node, level->apples, appleIndex++);
+						level->nbApples++;
+                    }
+                }
+            } else if (xmlStrcmp(cur_node->name, (const xmlChar *)"boxes") == 0) {
+                xmlNode *box_node = NULL;
+                for (box_node = cur_node->children; box_node; box_node = box_node->next) {
+                    if (box_node->type == XML_ELEMENT_NODE) {
+                        parseObject(box_node, level->boxes, boxIndex++);
+						level->nbBoxes++;
+                    }
+                }
+            } else if (xmlStrcmp(cur_node->name, (const xmlChar *)"traps") == 0) {
+                xmlNode *trap_node = NULL;
+                for (trap_node = cur_node->children; trap_node; trap_node = trap_node->next) {
+                    if (trap_node->type == XML_ELEMENT_NODE) {
+                        parseObject(trap_node, level->traps, trapIndex++);
+						level->nbTraps++;
+                    }
+                }
+            }
+        }
     }
 }
 
-// Free memory allocated for a Level struct
-void destroyLevel(Level *level)
-{
-    if (level == NULL) {
-        return;
-    }
-    free(level->applesXPositions);
-    free(level->applesYPositions);
-    free(level->applesMovements);
+// Initialize the game's elements sizes and positions
+void fixLevelElements(Game *game){
+	for (int i = 0; i < game->level[0].nbBoxes; i++)
+	{
+		game->boxes[i].w = 64;
+		game->boxes[i].h = 64;
+		game->boxes[i].x = game->level[0].boxes[i].xPosition;
+		game->boxes[i].y = game->level[0].boxes[i].yPosition;
+		game->boxes[i].dx = game->level[0].boxes[i].movement;
+		game->boxes[i].dy = 0;
+	}
 
-    free(level->boxesXPositions);
-    free(level->boxesYPositions);
-    free(level->boxesMovements);
+    for (int i = 0; i < game->level[0].nbTraps; i++)
+	{
+		game->trap[i].w = 64;
+		game->trap[i].h = 64;
+		game->trap[i].x = game->level[0].traps[i].xPosition;
+		game->trap[i].y = game->level[0].traps[i].yPosition;
+		game->trap[i].dx = game->level[0].traps[i].movement;
+		game->trap[i].dy = 0;
+	}
 
-    free(level->trapsXPositions);
-    free(level->trapsYPositions);
-    free(level->trapsMovements);
-
-    free(level);
+	for (int i = 0; i < game->level[0].nbApples; i++)
+	{
+		game->apple[i].w = 16;
+		game->apple[i].h = 16;
+		game->apple[i].x = game->level[0].apples[i].xPosition;
+		game->apple[i].y = game->level[0].apples[i].yPosition;
+		game->apple[i].dx = game->level[0].apples[i].movement;
+		game->apple[i].dy = 0;
+		game->apple[i].eaten = 0;
+	}
 }
 
 void initGameElements(Game *game, SDL_Surface *surface) {
+
+	// Fonts
+
 	game->font = TTF_OpenFont("./fonts/font.ttf", 48);
 
-	// please provide a path for your image
+	// Background
+
 	surface = IMG_Load("./assets/blue.PNG");
 	game->background = SDL_CreateTextureFromSurface(game->renderer, surface);
 
+	// Apples
+
 	surface = IMG_Load("./assets/Apple.PNG");
+
+	// Player Animation
+
 	game->item = SDL_CreateTextureFromSurface(game->renderer, surface);
 
 	surface = IMG_Load("./assets/playerJump.PNG");
@@ -494,6 +464,8 @@ void initGameElements(Game *game, SDL_Surface *surface) {
 	surface = IMG_Load("./assets/spikeHeadTrap.PNG");
 	game->traps[2] = SDL_CreateTextureFromSurface(game->renderer, surface);
 
+	// Labels
+
 	surface = TTF_RenderText_Solid(game->font, "Hello!", (SDL_Color){255, 255, 255, 255});
 	game->label[0] = SDL_CreateTextureFromSurface(game->renderer, surface);
 
@@ -502,6 +474,8 @@ void initGameElements(Game *game, SDL_Surface *surface) {
 
 	surface = TTF_RenderText_Solid(game->font, "Without touching traps!", (SDL_Color){255, 0, 0, 255});
 	game->label[2] = SDL_CreateTextureFromSurface(game->renderer, surface);
+
+	// Box
 
 	surface = IMG_Load("./assets/Box.PNG");
 	game->brick = SDL_CreateTextureFromSurface(game->renderer, surface);
@@ -653,4 +627,4 @@ void collisionDetect(Game *game, int nbBoxes)
 	}
 }
 
-// gcc -std=c11 -Wall -pedantic testSdl.c `pkg-config --libs SDL2` -lSDL2_image -lSDL2_ttf -g -o testSdl
+// gcc -std=c11 -Wall -pedantic testSdl.c `pkg-config --libs SDL2` -lSDL2_image -lSDL2_ttf -lxml2 -g -o testSdl
