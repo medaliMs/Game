@@ -61,7 +61,7 @@ typedef struct
 	Box boxes[23];
 	Trap trap[10];
 	Item apple[15];
-	Level level[2];
+	Level level[3];
 	SDL_Renderer *renderer;
 	SDL_Texture *background;
 	SDL_Texture *item;
@@ -82,8 +82,10 @@ void initGameElements(Game *game, SDL_Surface *surface);
 void parseObject(xmlNode *node, Object *obj, int index);
 void parseLevel(xmlNode *node, Level *level);			   
 void fixLevelElements(Game *game);
+int processEndLevel(Game *game);
 
 int cnt = 0;
+int currentLevel = 0;
 
 int main(int argc, char *argv[])
 {
@@ -109,6 +111,7 @@ int main(int argc, char *argv[])
 	SDL_Renderer *render = SDL_CreateRenderer(win, -1, render_flags);
 	game.renderer = render;
 	int levelIndex = 0;
+	int winning = 0;
 	xmlDoc *doc = NULL;
     xmlNode *root_element = NULL;
 
@@ -197,7 +200,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the boxes
-			for (int i = 0; i < game.level[0].nbBoxes; i++)
+			for (int i = 0; i < game.level[currentLevel].nbBoxes; i++)
 			{
 				game.boxes[i].x = (game.boxes[i].x + game.boxes[i].dx + WINDOW_WIDTH) % WINDOW_WIDTH;
 				game.boxes[i].y = (game.boxes[i].y + game.boxes[i].dy + WINDOW_WIDTH) % WINDOW_WIDTH;
@@ -209,7 +212,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the non eaten apples
-			for (int i = 0; i < game.level[0].nbApples; i++)
+			for (int i = 0; i < game.level[currentLevel].nbApples; i++)
 			{
 				if (!game.apple[i].eaten)
 				{
@@ -226,7 +229,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Render the traps
-			for (int i = 0; i < game.level[0].nbTraps; i++)
+			for (int i = 0; i < game.level[currentLevel].nbTraps; i++)
 			{
 				int cnt = 0;
 				if (i == 2 || i == 3)
@@ -265,6 +268,11 @@ int main(int argc, char *argv[])
 			SDL_RenderCopy(game.renderer, game.playerAnimation[cnt], NULL, &player);
 			game.player.dx = 0;
 
+			// Check if the player ate all apples
+			winning = processEndLevel(&game);
+			if(winning) {
+				close = 1;
+			}
 			// calculates to 60 fps
 			// SDL_Delay(1000 / 60);
 			// Restart timer
@@ -283,10 +291,23 @@ int main(int argc, char *argv[])
 		if (close)
 		{
 			SDL_Delay(2000);
-			char result_msg[] = "YOU LOSE!";
-			if (game.points >= 100)
-			{
-				memcpy(result_msg, "YOU WIN!", 8);
+			char result_msg[] = "GOOD! NEXT LEVEL";
+			// Check whether the player completed all levels or lost in a level 
+			if (currentLevel < levelIndex) {
+				if(winning){
+				    currentLevel++;
+				    fixLevelElements(&game);
+					close = 0;
+				} else {
+					memcpy(result_msg, "YOU LOSE!", 10);
+				}
+			} else {
+			   if (winning)
+			   {
+			   	   memcpy(result_msg, "YOU WIN!", 8);
+			   } else {
+				   memcpy(result_msg, "YOU LOSE!", 10);
+			   }
 			}
 			SDL_RenderClear(game.renderer);
 			surface = TTF_RenderText_Solid(game.font, result_msg, (SDL_Color){255, 0, 0, 255});
@@ -393,33 +414,33 @@ void parseLevel(xmlNode *node, Level *level) {
 
 // Initialize the game's elements sizes and positions
 void fixLevelElements(Game *game){
-	for (int i = 0; i < game->level[0].nbBoxes; i++)
+	for (int i = 0; i < game->level[currentLevel].nbBoxes; i++)
 	{
 		game->boxes[i].w = 64;
 		game->boxes[i].h = 64;
-		game->boxes[i].x = game->level[0].boxes[i].xPosition;
-		game->boxes[i].y = game->level[0].boxes[i].yPosition;
-		game->boxes[i].dx = game->level[0].boxes[i].movement;
+		game->boxes[i].x = game->level[currentLevel].boxes[i].xPosition;
+		game->boxes[i].y = game->level[currentLevel].boxes[i].yPosition;
+		game->boxes[i].dx = game->level[currentLevel].boxes[i].movement;
 		game->boxes[i].dy = 0;
 	}
 
-    for (int i = 0; i < game->level[0].nbTraps; i++)
+    for (int i = 0; i < game->level[currentLevel].nbTraps; i++)
 	{
 		game->trap[i].w = 64;
 		game->trap[i].h = 64;
-		game->trap[i].x = game->level[0].traps[i].xPosition;
-		game->trap[i].y = game->level[0].traps[i].yPosition;
-		game->trap[i].dx = game->level[0].traps[i].movement;
+		game->trap[i].x = game->level[currentLevel].traps[i].xPosition;
+		game->trap[i].y = game->level[currentLevel].traps[i].yPosition;
+		game->trap[i].dx = game->level[currentLevel].traps[i].movement;
 		game->trap[i].dy = 0;
 	}
 
-	for (int i = 0; i < game->level[0].nbApples; i++)
+	for (int i = 0; i < game->level[currentLevel].nbApples; i++)
 	{
 		game->apple[i].w = 16;
 		game->apple[i].h = 16;
-		game->apple[i].x = game->level[0].apples[i].xPosition;
-		game->apple[i].y = game->level[0].apples[i].yPosition;
-		game->apple[i].dx = game->level[0].apples[i].movement;
+		game->apple[i].x = game->level[currentLevel].apples[i].xPosition;
+		game->apple[i].y = game->level[currentLevel].apples[i].yPosition;
+		game->apple[i].dx = game->level[currentLevel].apples[i].movement;
 		game->apple[i].dy = 0;
 		game->apple[i].eaten = 0;
 	}
@@ -480,6 +501,17 @@ void initGameElements(Game *game, SDL_Surface *surface) {
 	surface = IMG_Load("./assets/Box.PNG");
 	game->brick = SDL_CreateTextureFromSurface(game->renderer, surface);
 } 
+
+int processEndLevel(Game *game)
+{
+	// Check if at least one apple is not eaten
+	for (int i = 0; i < game->level[currentLevel].nbApples; i++) {
+		if (game->apple->eaten == 0) {
+			return 0;
+		}
+	}
+	return 1;
+}
 
 int processEvents(Game *game, int close)
 {
