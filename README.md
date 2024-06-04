@@ -27,7 +27,8 @@ Any missing library will trigger an error while building the game. So you just n
 # Building the Game
 To generate the .exe file, run the following command:
 
-```gcc -std=c11 -Wall -pedantic testSdl.c `pkg-config --libs SDL2` -lSDL2_image -lSDL2_ttf -lxml2 -g -o testSdl```
+`make clean`
+`make`
 
 The game doesn't always run smoothly and probably contains many problems that could be detected during gameplay.
 
